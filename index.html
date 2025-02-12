@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <!-- SweetAlert CSS -->
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+     <!-- SweetAlert JS -->
+     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
@@ -417,15 +421,28 @@
             font-weight: bold;
             font-size: 16px;
         }
+        #Acontainer{
+            display: none;
+        }
+        .access-denied {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: bold;
+            color: black;
+        }
     </style>
 </head>
 <body>
     <header>
     
-            <h1>Panomwa Invoice Generation System</h1>
+            <h1 id="header">Panomwa Invoice Generation System</h1>
      
     </header>
-    <div class="container">
+    <div class="container" id="Acontainer">
        
         <div class="no-print">
             <form id="invoiceForm">
@@ -480,7 +497,68 @@
             <h2>Previous Invoices</h2>
         </div>
     </div>
+    <script>
+        const content = document.getElementById("Acontainer");
+        const header = document.getElementById("header");
+        let attempts = 0;
+        const maxAttempts = 3;
+        const correctPassword = "********";
 
+        function promptPassword() {
+            Swal.fire({
+                title: 'Enter your password',
+                input: 'password',
+                inputAttributes: {
+                    autocapitalize: 'off'
+                },
+                showCancelButton: false,
+                confirmButtonText: 'Submit',
+                showLoaderOnConfirm: true,
+                preConfirm: (password) => {
+                    if (password === correctPassword) {
+                        Swal.fire('Access granted!', '', 'success');
+                        content.style.display = "block";
+                    } else {
+                        attempts++;
+                        if (attempts >= maxAttempts) {
+                            Swal.fire({
+                                title: 'Maximum attempts reached',
+                                text: 'Access denied! Please contact the developer via WhatsApp.',
+                                icon: 'error',
+                                footer: '<a href="https://wa.me/254113607660" target="_blank">Contact Developer</a>'
+                            });
+                            header.innerHTML = "Access denied!"
+                            showAccessDenied();
+                        } else {
+                            Swal.fire('Incorrect password', `You have ${maxAttempts - attempts} attempts left.`, 'error')
+                                .then(() => {
+                                    promptPassword();
+                                });
+                        }
+                    }
+                }
+            });
+        }
+
+        function showAccessDenied() {
+            const colors = ["red", "green", "blue", "yellow", "purple", "orange"];
+            let currentIndex = 0;
+            
+            const accessDeniedText = document.createElement("div");
+            accessDeniedText.className = "access-denied";
+            accessDeniedText.textContent = "ACCESS DENIED!";
+            document.body.appendChild(accessDeniedText);
+            accessDeniedText.style.display = "block";
+
+            setInterval(() => {
+                document.body.style.backgroundColor = colors[currentIndex];
+                accessDeniedText.style.color = colors[currentIndex];
+                currentIndex = (currentIndex + 1) % colors.length;
+            }, 500); // Change color every 500 milliseconds
+        }
+
+        window.onload = promptPassword;
+    </script>
     <script>
           // DOM Elements
         const invoiceForm = document.getElementById('invoiceForm');
@@ -807,3 +885,4 @@ function printInvoice() {
     </script>
 </body>
 </html>
+
