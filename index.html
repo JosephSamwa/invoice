@@ -477,7 +477,7 @@
 
                 <div class="form-group">
                     <label for="tax">Tax (%):</label>
-                    <input type="number" id="tax" value="0">
+                    <input type="number" id="tax" value="16">
                 </div>
 
                 <div class="form-group">
@@ -500,6 +500,11 @@
     <script>
         const content = document.getElementById("Acontainer");
         const header = document.getElementById("header");
+        const addItemButton = document.getElementById("addItem");
+        const taxInput = document.getElementById("tax");
+        const invoicesListDiv = document.getElementById("invoicesList");
+        const subtotalInput = document.getElementById("subtotal"); // Fix: Define subtotalInput
+        const totalInput = document.getElementById("total"); // Fix: Define totalInput
         let attempts = 0;
         const maxAttempts = 3;
         const correctPassword = "********";
@@ -560,112 +565,129 @@
         window.onload = promptPassword;
     </script>
     <script>
-          // DOM Elements
-        const invoiceForm = document.getElementById('invoiceForm');
-        const itemsList = document.getElementById('itemsList');
-        const addItemButton = document.getElementById('addItem');
-        const subtotalInput = document.getElementById('subtotal');
-        const taxInput = document.getElementById('tax');
-        const totalInput = document.getElementById('total');
-        const invoicePreview = document.getElementById('invoicePreview');
-        const invoicesListDiv = document.getElementById('invoicesList');
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAB3ukYH4Cml7M_xZ86hZsAVI3xLKLiLf0",
-  authDomain: "panomwa-d2ea7.firebaseapp.com",
-  databaseURL: "https://panomwa-d2ea7-default-rtdb.firebaseio.com",
-  projectId: "panomwa-d2ea7",
-  storageBucket: "panomwa-d2ea7.firebasestorage.app",
-  messagingSenderId: "1004538245973",
-  appId: "1:1004538245973:web:7e2c6ac892323ca39835dc",
-  measurementId: "G-XGX1MW3EJ8"
-};
-
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
-// Function to save invoice
-async function saveInvoice(invoiceData) {
-    const newInvoiceRef = database.ref('invoices').push();
-    await newInvoiceRef.set(invoiceData);
-    loadInvoices();
-}
-
-// Function to load invoices
-async function loadInvoices() {
-    invoicesListDiv.innerHTML = "";
-    const snapshot = await database.ref('invoices').once('value');
-    const invoices = snapshot.val();
-
-    if (invoices) {
-        Object.keys(invoices).forEach(key => {
-            const invoice = invoices[key];
-            const invoiceElement = document.createElement('div');
-            invoiceElement.innerHTML = `
-                <p><strong>Invoice #:</strong> ${invoice.invoiceNumber}</p>
-                <p><strong>Customer:</strong> ${invoice.customerName}</p>
-                <p><strong>Total:</strong> KSH ${invoice.subtotal.toFixed(2)}</p>
-                <button onclick="viewInvoice('${key}')">View</button>
-                <button onclick="deleteInvoice('${key}')">Delete</button>
-            `;
-            invoicesListDiv.appendChild(invoiceElement);
-        });
-    }
-}
-
-// Function to delete an invoice
-async function deleteInvoice(invoiceId) {
-    await database.ref(`invoices/${invoiceId}`).remove();
-    loadInvoices();
-}
-
-// Function to view invoice details
-async function viewInvoice(invoiceId) {
-    const snapshot = await database.ref(`invoices/${invoiceId}`).once('value');
-    const invoiceData = snapshot.val();
-    displayInvoicePreview(invoiceData);
-}
-
-// Generate unique invoice number
-const generateInvoiceNumber = async () => {
-    const snapshot = await database.ref('invoices').once('value');
-    const invoices = snapshot.val() || {};
-    const invoiceCount = Object.keys(invoices).length;
-    return `P${(invoiceCount + 1).toString().padStart(5, '0')}`;
-};
-
-// Attach form submission event
-invoiceForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const invoiceData = {
-        invoiceNumber: await generateInvoiceNumber(),
-        customerName: document.getElementById('customerName').value,
-        customerEmail: document.getElementById('customerEmail').value,
-        items: Array.from(itemsList.getElementsByClassName('item-row')).map(row => ({
-            description: row.querySelector('.item-description').value,
-            quantity: parseFloat(row.querySelector('.item-quantity').value),
-            price: parseFloat(row.querySelector('.item-price').value),
-            total: parseFloat(row.querySelector('.item-total').value)
-        })),
-        subtotal: parseFloat(subtotalInput.value),
-        tax: parseFloat(taxInput.value),
-        total: parseFloat(totalInput.value),
-        date: new Date().toISOString()
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAB3ukYH4Cml7M_xZ86hZsAVI3xLKLiLf0",
+        authDomain: "panomwa-d2ea7.firebaseapp.com",
+        databaseURL: "https://panomwa-d2ea7-default-rtdb.firebaseio.com",
+        projectId: "panomwa-d2ea7",
+        storageBucket: "panomwa-d2ea7.firebasestorage.app",
+        messagingSenderId: "1004538245973",
+        appId: "1:1004538245973:web:7e2c6ac892323ca39835dc",
+        measurementId: "G-XGX1MW3EJ8"
     };
 
-    await saveInvoice(invoiceData);
-});
+    let database; // Define database globally
 
+    try {
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database(); // Assign the database instance to the global variable
+    } catch (error) {
+        console.error("Error initializing Firebase:", error);
+    }
 
+    // Function to save invoice
+    async function saveInvoice(invoiceData) {
+        try {
+            const newInvoiceRef = database.ref('invoices').push();
+            await newInvoiceRef.set(invoiceData);
+            loadInvoices();
+        } catch (error) {
+            console.error("Error saving invoice:", error);
+        }
+    }
 
-      
+    // Function to load invoices
+    async function loadInvoices() {
+        try {
+            invoicesListDiv.innerHTML = "";
+            const snapshot = await database.ref('invoices').once('value');
+            const invoices = snapshot.val();
 
-        // Add new item row
-        addItemButton.addEventListener('click', () => {
+            if (invoices) {
+                Object.keys(invoices).forEach(key => {
+                    const invoice = invoices[key];
+                    const invoiceElement = document.createElement('div');
+                    invoiceElement.innerHTML = `
+                        <p><strong>Invoice #:</strong> ${invoice.invoiceNumber}</p>
+                        <p><strong>Customer:</strong> ${invoice.customerName}</p>
+                        <p><strong>Total:</strong> KSH ${invoice.subtotal.toFixed(2)}</p>
+                        <button onclick="viewInvoice('${key}')">View</button>
+                        <button onclick="deleteInvoice('${key}')">Delete</button>
+                    `;
+                    invoicesListDiv.appendChild(invoiceElement);
+                });
+            }
+        } catch (error) {
+            console.error("Error loading invoices:", error);
+        }
+    }
+
+    // Function to delete an invoice
+    async function deleteInvoice(invoiceId) {
+        try {
+            await database.ref(`invoices/${invoiceId}`).remove();
+            loadInvoices();
+        } catch (error) {
+            console.error("Error deleting invoice:", error);
+        }
+    }
+
+    // Function to view invoice details
+    async function viewInvoice(invoiceId) {
+        try {
+            const snapshot = await database.ref(`invoices/${invoiceId}`).once('value');
+            const invoiceData = snapshot.val();
+            displayInvoicePreview(invoiceData);
+        } catch (error) {
+            console.error("Error viewing invoice:", error);
+        }
+    }
+
+    // Generate unique invoice number
+    const generateInvoiceNumber = async () => {
+        try {
+            const snapshot = await database.ref('invoices').once('value');
+            const invoices = snapshot.val() || {};
+            const invoiceCount = Object.keys(invoices).length;
+            return `P${(invoiceCount + 1).toString().padStart(5, '0')}`;
+        } catch (error) {
+            console.error("Error generating invoice number:", error);
+            return "P00000"; // Fallback invoice number
+        }
+    };
+
+    // Attach form submission event
+    invoiceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        try {
+            const invoiceData = {
+                invoiceNumber: await generateInvoiceNumber(),
+                customerName: document.getElementById('customerName').value,
+                customerEmail: document.getElementById('customerEmail').value,
+                items: Array.from(itemsList.getElementsByClassName('item-row')).map(row => ({
+                    description: row.querySelector('.item-description').value,
+                    quantity: parseFloat(row.querySelector('.item-quantity').value),
+                    price: parseFloat(row.querySelector('.item-price').value),
+                    total: parseFloat(row.querySelector('.item-total').value)
+                })),
+                subtotal: parseFloat(subtotalInput.value),
+                tax: parseFloat(taxInput.value),
+                total: parseFloat(totalInput.value),
+                date: new Date().toISOString()
+            };
+
+            await saveInvoice(invoiceData);
+        } catch (error) {
+            console.error("Error submitting invoice form:", error);
+        }
+    });
+
+    // Add new item row
+    addItemButton.addEventListener('click', () => {
+        try {
             const itemRow = document.createElement('div');
             itemRow.className = 'item-row';
             itemRow.innerHTML = `
@@ -676,27 +698,45 @@ invoiceForm.addEventListener('submit', async (e) => {
                 <button type="button" class="remove-item">Remove</button>
             `;
             itemsList.appendChild(itemRow);
-        });
+        } catch (error) {
+            console.error("Error adding item row:", error);
+        }
+    });
 
-        // Remove item row
-        itemsList.addEventListener('click', (e) => {
+    // Remove item row
+    itemsList.addEventListener('click', (e) => {
+        try {
             if (e.target.classList.contains('remove-item')) {
                 e.target.parentElement.remove();
                 calculateTotals();
             }
-        });
+        } catch (error) {
+            console.error("Error removing item row:", error);
+        }
+    });
 
-        // Calculate item totals
-        itemsList.addEventListener('input', (e) => {
+    // Calculate item totals
+    itemsList.addEventListener('input', (e) => {
+        try {
             if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-price')) {
                 calculateTotals();
             }
-        });
+        } catch (error) {
+            console.error("Error calculating item totals:", error);
+        }
+    });
 
-        // Calculate tax
-        taxInput.addEventListener('input', calculateTotals);
+    // Calculate tax
+    taxInput.addEventListener('input', () => {
+        try {
+            calculateTotals();
+        } catch (error) {
+            console.error("Error calculating tax:", error);
+        }
+    });
 
-        function calculateTotals() {
+    function calculateTotals() {
+        try {
             let subtotal = 0;
             const rows = itemsList.getElementsByClassName('item-row');
 
@@ -712,177 +752,17 @@ invoiceForm.addEventListener('submit', async (e) => {
             const total = subtotal + tax;
             subtotalInput.value = subtotal.toFixed(2);
             totalInput.value = total.toFixed(2);
+        } catch (error) {
+            console.error("Error calculating totals:", error);
         }
+    }
 
-
-
-        function displayInvoicePreview(invoiceData) {
-    const invoiceHTML = `
-        <div class="invoice"  id="invoice-to-print">
-            <div class="header">
-                <img src="panomwa-logo2.png" alt="Panomwa Enterprises Logo">
-                <div>
-                    <p>DELIVERY/INVOICE</p>
-                    <h2>PANOMWA ENTERPRISES</h2>
-                </div>
-            </div>
-            <div class="contact-info">
-                <div>
-                    <p>NAZARETH HSE ORUBA,-ONYINJO ROAD</p>
-                    <p>P.O. BOX 1083, SUNA MIGORI</p>
-                    <p>TEL: 0721-743728 /0723-677509</p>
-                    <p>Email: panomwaenterprises@gmail.com</p>
-                    <p>PIN: A003326244Z</p>
-                </div>
-                <div>
-                    <p>SORI SHOPPING CENTER</p>
-                    <p>OPP SORI L.</p>
-                    <p>Karungu -Gwassi Road</p>
-                    <p>P.O BOX 77, Karungu</p>
-                </div>
-                <div>
-                    <p>SINDO TOWN</p>
-                    <p>NYABOMO ROAD</p>
-                    <p>P.O. BOX 116-40308,Sindo</p>
-                    <p>TEL: 0723-677509</p>
-                </div>
-            </div>
-            <div class="business-type">
-                <p>Dealers in:- General supplies & Construction, Printing & Stationery, School Equipment, Textbooks, Sell of Hardware, Computer, Office Equipment, Uniforms, Cereal & General Merchandised</p>
-            </div>
-            <div class="customer-details">
-                <div>
-                    <p>M/S. ${invoiceData.customerName}</p>
-                </div>
-                <div>
-                    <p>Date: ${new Date(invoiceData.date).toLocaleDateString()}</p>
-                    <p>Your Order No._____________________________ </p>
-                </div>
-            </div>
-            <div class="table-header">Receive the under mentioned goods in good condition</div>
-            <table class="invoice-table">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${invoiceData.items.map(item => `
-                        <tr>
-                            <td>${item.description}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.price.toFixed(2)}</td>
-                            <td>${item.total.toFixed(2)}</td>
-                        </tr>
-                    `).join('')}
-                   <tr>
-                        <td></td><td></td><td></td><td></td>
-                    </tr>
-                    <tr>
-                        <td></td><td></td><td></td><td></td>
-                    </tr>
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="3"><strong>Subtotal:</strong></td>
-                        <td>${invoiceData.subtotal.toFixed(2)-(invoiceData.subtotal * invoiceData.tax / 100).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="3"><strong>Tax (${invoiceData.tax}%):</strong></td>
-                        <td>${(invoiceData.subtotal * invoiceData.tax / 100).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td><p>E.&O.E</p></td>
-                        <td colspan="2">No.<strong>${invoiceData.invoiceNumber}</strong> <p style="text-align:right;"><strong >Total:</strong></p></td>
-                        <td>KSH ${invoiceData.subtotal.toFixed(2)}</td>
-                        
-                    </tr>
-                </tfoot>
-            </table>
-            <div class="due-notice">Accounts are due on demand</div>
-            <div class="footer">
-                <div class="footer-content">
-                    <div class="signature-section">
-                        <p>Received by_____________________________</p><br>
-                        <p>Sign/Rubber Stamp _____________________________</p>
-                    </div>
-                </div>
-                <div class="copy-types">
-                    <p>White: Original</p>
-                    <p>Blue: Duplicate</p>
-                    <p>Pink: Triplicate</p>
-                </div>
-            </div>
-        </div>
-    `;
-         
-            invoicePreview.innerHTML = invoiceHTML;
-            //document.getElementById('printableInvoice').innerHTML = invoiceHTML;
-            
-            // Add print button to the invoice preview
-            const printButton = document.createElement('button');
-            printButton.textContent = 'Print Invoice';
-            printButton.onclick = printInvoice;
-            printButton.className = 'no-print';
-            //invoicePreview.appendChild(printButton);
-
-            // Add download button to the invoice preview
-            const DownloadButton = document.createElement('button');
-            DownloadButton.textContent = 'Download Invoice';
-            //DownloadButton.onclick = downloadPDF;
-            DownloadButton.className = 'no-print';
-            invoicePreview.appendChild(DownloadButton);
-
-            DownloadButton.onclick= function () {
-    var element = document.getElementById('invoice-to-print');
-
-    // Wait until all images are loaded
-    let images = element.getElementsByTagName('img');
-    let imagePromises = Array.from(images).map(img => {
-        return new Promise(resolve => {
-            if (img.complete) {
-                resolve();
-            } else {
-                img.onload = resolve;
-                img.onerror = resolve; // Prevent the function from hanging in case of an error
-            }
-        });
-    });
-
-    // Once all images are loaded, generate the PDF
-    Promise.all(imagePromises).then(() => {
-        html2pdf(element, {
-            margin: 1,
-            filename: `${invoiceData.invoiceNumber}-${invoiceData.customerName}.pdf`,
-            html2canvas: { 
-                scale: 2,
-                useCORS: true
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        });
-    });
-}
-
-
-};
-       
-function printInvoice() {
-    // Get all buttons and hide them
-    var buttons = document.querySelectorAll('button');
-    buttons.forEach(button => button.style.display = 'none');
-
-    // Trigger print dialog
-    window.print();
-
-    // Restore buttons after printing
-    buttons.forEach(button => button.style.display = 'block');
-}
-
-        // Initial load of invoices
+    // Initial load of invoices
+    try {
         loadInvoices();
+    } catch (error) {
+        console.error("Error during initial invoice load:", error);
+    }
     </script>
 </body>
 </html>
