@@ -645,125 +645,714 @@
         }
     }
 
-    // Generate unique invoice number
-    const generateInvoiceNumber = async () => {
+    // Function to display invoice preview
+    function displayInvoicePreview(invoiceData) {
         try {
-            const snapshot = await database.ref('invoices').once('value');
-            const invoices = snapshot.val() || {};
-            const invoiceCount = Object.keys(invoices).length;
-            return `P${(invoiceCount + 1).toString().padStart(5, '0')}`;
-        } catch (error) {
-            console.error("Error generating invoice number:", error);
-            return "P00000"; // Fallback invoice number
-        }
-    };
-
-    // Attach form submission event
-    invoiceForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        try {
-            const invoiceData = {
-                invoiceNumber: await generateInvoiceNumber(),
-                customerName: document.getElementById('customerName').value,
-                customerEmail: document.getElementById('customerEmail').value,
-                items: Array.from(itemsList.getElementsByClassName('item-row')).map(row => ({
-                    description: row.querySelector('.item-description').value,
-                    quantity: parseFloat(row.querySelector('.item-quantity').value),
-                    price: parseFloat(row.querySelector('.item-price').value),
-                    total: parseFloat(row.querySelector('.item-total').value)
-                })),
-                subtotal: parseFloat(subtotalInput.value),
-                tax: parseFloat(taxInput.value),
-                total: parseFloat(totalInput.value),
-                date: new Date().toISOString()
-            };
-
-            await saveInvoice(invoiceData);
-        } catch (error) {
-            console.error("Error submitting invoice form:", error);
-        }
-    });
-
-    // Add new item row
-    addItemButton.addEventListener('click', () => {
-        try {
-            const itemRow = document.createElement('div');
-            itemRow.className = 'item-row';
-            itemRow.innerHTML = `
-                <input type="text" placeholder="Item Description" class="item-description" required>
-                <input type="number" placeholder="Quantity" class="item-quantity" required>
-                <input type="number" placeholder="Price" class="item-price" required>
-                <input type="text" class="item-total" readonly>
-                <button type="button" class="remove-item">Remove</button>
-            `;
-            itemsList.appendChild(itemRow);
-        } catch (error) {
-            console.error("Error adding item row:", error);
-        }
-    });
-
-    // Remove item row
-    itemsList.addEventListener('click', (e) => {
-        try {
-            if (e.target.classList.contains('remove-item')) {
-                e.target.parentElement.remove();
-                calculateTotals();
-            }
-        } catch (error) {
-            console.error("Error removing item row:", error);
-        }
-    });
-
-    // Calculate item totals
-    itemsList.addEventListener('input', (e) => {
-        try {
-            if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-price')) {
-                calculateTotals();
-            }
-        } catch (error) {
-            console.error("Error calculating item totals:", error);
-        }
-    });
-
-    // Calculate tax
-    taxInput.addEventListener('input', () => {
-        try {
-            calculateTotals();
-        } catch (error) {
-            console.error("Error calculating tax:", error);
-        }
-    });
-
-    function calculateTotals() {
-        try {
-            let subtotal = 0;
-            const rows = itemsList.getElementsByClassName('item-row');
-
-            Array.from(rows).forEach(row => {
-                const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
-                const price = parseFloat(row.querySelector('.item-price').value) || 0;
-                const total = quantity * price;
-                row.querySelector('.item-total').value = total.toFixed(2);
-                subtotal += total;
+            const invoicePreview = document.getElementById('invoicePreview');
+            
+            // Format date
+            const invoiceDate = new Date(invoiceData.date);
+            const formattedDate = invoiceDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
-
-            const tax = (subtotal * (parseFloat(taxInput.value) || 0)) / 100;
-            const total = subtotal + tax;
-            subtotalInput.value = subtotal.toFixed(2);
-            totalInput.value = total.toFixed(2);
+            
+            // Create HTML for the invoice preview
+            let html = `
+                <div class="invoice">
+                    <div class="header">
+                        <div>
+                            <h2>PANOMWA ENTERPRISES</h2>
+                            <p>Reliable Partner in Business</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-info">
+                        <div>
+                            <p>Email: info@panomwa.com</p>
+                            <p>Phone: +254 723 456 789</p>
+                        </div>
+                        <div>
+                            <p><strong>Invoice #:</strong> ${invoiceData.invoiceNumber}</p>
+                            <p><strong>Date:</strong> ${formattedDate}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="business-type">
+                        <p>General Suppliers | Hardware | Construction Materials | Electrical & Electronics | Consultancy</p>
+                    </div>
+                    
+                    <div class="customer-details">
+                        <div>
+                            <p><strong>Bill To:</strong></p>
+                            <p>${invoiceData.customerName}</p>
+                            <p>${invoiceData.customerEmail}</p>
+                        </div>
+                    </div>
+                    
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            // Add items
+            invoiceData.items.forEach(item => {
+                html += `
+                    <tr>
+                        <td>${item.description}</td>
+                        <td>${item.quantity}</td>
+                        <td>KSH ${item.price.toFixed(2)}</td>
+                        <td>KSH ${item.total.toFixed(2)}</td>
+                    </tr>`;
+            });
+            
+            // Add totals
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="text-align: right;"><strong>Subtotal:</strong></td>
+                                <td>KSH ${invoiceData.subtotal.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="text-align: right;"><strong>Tax (${invoiceData.tax}%):</strong></td>
+                                <td>KSH ${((invoiceData.tax / 100) * invoiceData.subtotal).toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
+                                <td>KSH ${invoiceData.total.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <div class="footer">
+                        <div class="footer-content">
+                            <div>
+                                <p><strong>Payment Terms:</strong> Due on receipt</p>
+                            </div>
+                        </div>
+                        <div class="due-notice">
+                            <p>Thank you for your business!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="copy-types">
+                        <p>Original</p>
+                        <p>Customer Copy</p>
+                    </div>
+                </div>
+                <div class="no-print" style="margin-top: 20px; text-align: center;">
+                    <button onclick="printInvoice(${JSON.stringify(invoiceData).replace(/"/g, '&quot;')})">Print Invoice</button>
+                    <button onclick="downloadPDF(${JSON.stringify(invoiceData).replace(/"/g, '&quot;')})">Download PDF</button>
+                </div>
+            `;
+            
+            invoicePreview.innerHTML = html;
+            invoicePreview.scrollIntoView({ behavior: 'smooth' });
         } catch (error) {
-            console.error("Error calculating totals:", error);
+            console.error("Error displaying invoice preview:", error);
         }
     }
 
-    // Initial load of invoices
-    try {
-        loadInvoices();
+    // Function to print invoice
+    function printInvoice(invoiceData) {
+        try {
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            
+            // Add necessary styles
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Invoice ${invoiceData.invoiceNumber}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            color: #333;
+                            margin: 0;
+                            padding: 20px;
+                        }
+                        .invoice {
+                            max-width: 800px;
+                            margin: 0 auto;
+                            background: #ffffff;
+                            padding: 20px;
+                        }
+                        .header {
+                            display: flex;
+                            margin-bottom: 5px;
+                            padding-bottom: 4px;
+                        }
+                        .header h2 {
+                            color: #4a90e2;
+                            margin: 10px 0;
+                            font-size: 16px;
+                            font-weight: bold;
+                            letter-spacing: 4px;
+                        }
+                        .header div {
+                            margin-left: 25%;
+                            text-align: right;
+                        }
+                        .contact-info {
+                            display: flex;
+                            justify-content: space-between;
+                        }
+                        .business-type {
+                            font-style: italic;
+                            margin: 20px 0;
+                            line-height: 1.5;
+                            border-top: solid #3498db;
+                        }
+                        .customer-details {
+                            display: flex;
+                            justify-content: space-between;
+                            margin: 20px 0;
+                            background: #f8f9fa;
+                            padding: 15px;
+                            border-radius: 8px;
+                        }
+                        .invoice-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 20px 0;
+                        }
+                        .invoice-table th, .invoice-table td {
+                            border: 1px solid #2b5d8c;
+                            padding: 10px;
+                            text-align: left;
+                        }
+                        .invoice-table th {
+                            background-color: #2b5d8c;
+                            color: white;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            text-align: center;
+                        }
+                        .footer-content {
+                            margin-top: 20px;
+                            display: flex;
+                            justify-content: space-between;
+                        }
+                        .copy-types {
+                            display: flex;
+                            justify-content: space-evenly;
+                        }
+                        .due-notice {
+                            text-align: center;
+                            margin-top: 30px;
+                            font-weight: bold;
+                            font-size: 16px;
+                        }
+                    </style>
+                </head>
+                <body>
+            `);
+            
+            // Format date for the print view
+            const invoiceDate = new Date(invoiceData.date);
+            const formattedDate = invoiceDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            // Create the invoice HTML content
+            let invoiceHTML = `
+                <div class="invoice">
+                    <div class="header">
+                        <div>
+                            <h2>PANOMWA ENTERPRISES</h2>
+                            <p>Reliable Partner in Business</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-info">
+                        <div>
+                            <p>Email: info@panomwa.com</p>
+                            <p>Phone: +254 723 456 789</p>
+                        </div>
+                        <div>
+                            <p><strong>Invoice #:</strong> ${invoiceData.invoiceNumber}</p>
+                            <p><strong>Date:</strong> ${formattedDate}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="business-type">
+                        <p>General Suppliers | Hardware | Construction Materials | Electrical & Electronics | Consultancy</p>
+                    </div>
+                    
+                    <div class="customer-details">
+                        <div>
+                            <p><strong>Bill To:</strong></p>
+                            <p>${invoiceData.customerName}</p>
+                            <p>${invoiceData.customerEmail}</p>
+                        </div>
+                    </div>
+                    
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+            // Add items to the invoice
+            invoiceData.items.forEach(item => {
+                invoiceHTML += `
+                    <tr>
+                        <td>${item.description}</td>
+                        <td>${item.quantity}</td>
+                        <td>KSH ${item.price.toFixed(2)}</td>
+                        <td>KSH ${item.total.toFixed(2)}</td>
+                    </tr>`;
+            });
+            
+            // Add totals section
+            invoiceHTML += `
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: right;"><strong>Subtotal:</strong></td>
+                            <td>KSH ${invoiceData.subtotal.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="text-align: right;"><strong>Tax (${invoiceData.tax}%):</strong></td>
+                            <td>KSH ${((invoiceData.tax / 100) * invoiceData.subtotal).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
+                            <td>KSH ${invoiceData.total.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <div class="footer">
+                    <div class="footer-content">
+                        <div>
+                            <p><strong>Payment Terms:</strong> Due on receipt</p>
+                        </div>
+                    </div>
+                    <div class="due-notice">
+                        <p>Thank you for your business!</p>
+                    </div>
+                </div>
+                
+                <div class="copy-types">
+                    <p>Original</p>
+                    <p>Customer Copy</p>
+                </div>
+            </div>
+        `;
+        
+        // Add the invoice HTML to the print window
+        printWindow.document.write(invoiceHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        
+        // Wait for content to load before printing
+        printWindow.onload = function() {
+            printWindow.focus();
+            printWindow.print();
+            // Close the window after printing (optional - comment out if you want it to stay open)
+            printWindow.onafterprint = function() {
+                printWindow.close();
+            };
+        };
     } catch (error) {
-        console.error("Error during initial invoice load:", error);
+        console.error("Error printing invoice:", error);
     }
+}
+
+// Function to download invoice as PDF
+function downloadPDF(invoiceData) {
+    try {
+        // Create a new window for PDF generation
+        const pdfWindow = window.open('', '_blank');
+          // Add necessary styles
+        pdfWindow.document.write(`
+            <html>
+            <head>
+                <title>Invoice ${invoiceData.invoiceNumber}</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        color: #333;
+                        margin: 0;
+                        padding: 20px;
+                    }
+                    .invoice {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        background: #ffffff;
+                        padding: 20px;
+                    }
+                    .header {
+                        display: flex;
+                        margin-bottom: 5px;
+                        padding-bottom: 4px;
+                    }
+                    .header h2 {
+                        color: #4a90e2;
+                        margin: 10px 0;
+                        font-size: 16px;
+                        font-weight: bold;
+                        letter-spacing: 4px;
+                    }
+                    .header div {
+                        margin-left: 25%;
+                        text-align: right;
+                    }
+                    .contact-info {
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    .business-type {
+                        font-style: italic;
+                        margin: 20px 0;
+                        line-height: 1.5;
+                        border-top: solid #3498db;
+                    }
+                    .customer-details {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 20px 0;
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                    }
+                    .invoice-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 20px 0;
+                    }
+                    .invoice-table th, .invoice-table td {
+                        border: 1px solid #2b5d8c;
+                        padding: 10px;
+                        text-align: left;
+                    }
+                    .invoice-table th {
+                        background-color: #2b5d8c;
+                        color: white;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        text-align: center;
+                    }
+                    .footer-content {
+                        margin-top: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    .copy-types {
+                        display: flex;
+                        justify-content: space-evenly;
+                    }
+                    .due-notice {
+                        text-align: center;
+                        margin-top: 30px;
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                </style>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+            </head>
+            <body>
+        `);
+        
+        // Format date for the PDF
+        const invoiceDate = new Date(invoiceData.date);
+        const formattedDate = invoiceDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Create the invoice HTML content
+        let invoiceHTML = `
+            <div class="invoice" id="invoice-content">
+                <div class="header">
+                    <div>
+                        <h2>PANOMWA ENTERPRISES</h2>
+                        <p>Reliable Partner in Business</p>
+                    </div>
+                </div>
+                
+                <div class="contact-info">
+                    <div>
+                        <p>Email: info@panomwa.com</p>
+                        <p>Phone: +254 723 456 789</p>
+                    </div>
+                    <div>
+                        <p><strong>Invoice #:</strong> ${invoiceData.invoiceNumber}</p>
+                        <p><strong>Date:</strong> ${formattedDate}</p>
+                    </div>
+                </div>
+                
+                <div class="business-type">
+                    <p>General Suppliers | Hardware | Construction Materials | Electrical & Electronics | Consultancy</p>
+                </div>
+                
+                <div class="customer-details">
+                    <div>
+                        <p><strong>Bill To:</strong></p>
+                        <p>${invoiceData.customerName}</p>
+                        <p>${invoiceData.customerEmail}</p>
+                    </div>
+                </div>
+                
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+    
+        // Add items to the invoice
+        invoiceData.items.forEach(item => {
+            invoiceHTML += `
+                <tr>
+                    <td>${item.description}</td>
+                    <td>${item.quantity}</td>
+                    <td>KSH ${item.price.toFixed(2)}</td>
+                    <td>KSH ${item.total.toFixed(2)}</td>
+                </tr>`;
+        });
+        
+        // Add totals section
+        invoiceHTML += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Subtotal:</strong></td>
+                        <td>KSH ${invoiceData.subtotal.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Tax (${invoiceData.tax}%):</strong></td>
+                        <td>KSH ${((invoiceData.tax / 100) * invoiceData.subtotal).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
+                        <td>KSH ${invoiceData.total.toFixed(2)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div class="footer">
+                <div class="footer-content">
+                    <div>
+                        <p><strong>Payment Terms:</strong> Due on receipt</p>
+                    </div>
+                </div>
+                <div class="due-notice">
+                    <p>Thank you for your business!</p>
+                </div>
+            </div>
+            
+            <div class="copy-types">
+                <p>Original</p>
+                <p>Customer Copy</p>
+            </div>
+        </div>
+          <script>
+            // Generate PDF once the page is loaded
+            window.onload = function() {
+                const element = document.getElementById('invoice-content');
+                const opt = {
+                    margin: [10, 10, 10, 10],
+                    filename: 'Invoice_${invoiceData.invoiceNumber}.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                // Add a small delay to ensure everything renders properly
+                setTimeout(() => {
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        // Display a success message
+                        const downloadComplete = document.createElement('div');
+                        downloadComplete.style.textAlign = 'center';
+                        downloadComplete.style.marginTop = '20px';
+                        downloadComplete.style.padding = '10px';
+                        downloadComplete.style.backgroundColor = '#d4edda';
+                        downloadComplete.style.color = '#155724';
+                        downloadComplete.style.borderRadius = '4px';
+                        downloadComplete.innerHTML = '<p>PDF download complete! You can close this window.</p>';
+                        document.body.appendChild(downloadComplete);
+                    });
+                }, 500);
+            };
+        </script>
+        `;
+        
+        // Add the invoice HTML to the PDF window
+        pdfWindow.document.write(invoiceHTML);
+        pdfWindow.document.write('</body></html>');
+        pdfWindow.document.close();
+        
+    } catch (error) {
+        console.error("Error downloading PDF:", error);
+        // Show error notification to user
+        Swal.fire({
+            icon: 'error',
+            title: 'PDF Generation Failed',
+            text: 'There was a problem creating your PDF. Please try again.',
+            footer: 'Technical details: ' + error.message
+        });
+    }
+}
+
+// Generate unique invoice number
+const generateInvoiceNumber = async () => {
+    try {
+        const snapshot = await database.ref('invoices').once('value');
+        const invoices = snapshot.val() || {};
+        const invoiceCount = Object.keys(invoices).length;
+        return `P${(invoiceCount + 1).toString().padStart(5, '0')}`;
+    } catch (error) {
+        console.error("Error generating invoice number:", error);
+        return "P00000"; // Fallback invoice number
+    }
+};
+
+// Attach form submission event
+invoiceForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    try {
+        const invoiceData = {
+            invoiceNumber: await generateInvoiceNumber(),
+            customerName: document.getElementById('customerName').value,
+            customerEmail: document.getElementById('customerEmail').value,
+            items: Array.from(itemsList.getElementsByClassName('item-row')).map(row => ({
+                description: row.querySelector('.item-description').value,
+                quantity: parseFloat(row.querySelector('.item-quantity').value),
+                price: parseFloat(row.querySelector('.item-price').value),
+                total: parseFloat(row.querySelector('.item-total').value)
+            })),
+            subtotal: parseFloat(subtotalInput.value),
+            tax: parseFloat(taxInput.value),
+            total: parseFloat(totalInput.value),
+            date: new Date().toISOString()
+        };
+
+        await saveInvoice(invoiceData);
+    } catch (error) {
+        console.error("Error submitting invoice form:", error);
+    }
+});
+
+// Add new item row
+addItemButton.addEventListener('click', () => {
+    try {
+        const itemRow = document.createElement('div');
+        itemRow.className = 'item-row';
+        itemRow.innerHTML = `
+            <input type="text" placeholder="Item Description" class="item-description" required>
+            <input type="number" placeholder="Quantity" class="item-quantity" required>
+            <input type="number" placeholder="Price" class="item-price" required>
+            <input type="text" class="item-total" readonly>
+            <button type="button" class="remove-item">Remove</button>
+        `;
+        itemsList.appendChild(itemRow);
+    } catch (error) {
+        console.error("Error adding item row:", error);
+    }
+});
+
+// Remove item row
+itemsList.addEventListener('click', (e) => {
+    try {
+        if (e.target.classList.contains('remove-item')) {
+            e.target.parentElement.remove();
+            calculateTotals();
+        }
+    } catch (error) {
+        console.error("Error removing item row:", error);
+    }
+});
+
+// Calculate item totals
+itemsList.addEventListener('input', (e) => {
+    try {
+        if (e.target.classList.contains('item-quantity') || e.target.classList.contains('item-price')) {
+            calculateTotals();
+        }
+    } catch (error) {
+        console.error("Error calculating item totals:", error);
+    }
+});
+
+// Calculate tax
+taxInput.addEventListener('input', () => {
+    try {
+        calculateTotals();
+    } catch (error) {
+        console.error("Error calculating tax:", error);
+    }
+});
+
+function calculateTotals() {
+    try {
+        let subtotal = 0;
+        const rows = itemsList.getElementsByClassName('item-row');
+
+        Array.from(rows).forEach(row => {
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const total = quantity * price;
+            row.querySelector('.item-total').value = total.toFixed(2);
+            subtotal += total;
+        });
+
+        const tax = (subtotal * (parseFloat(taxInput.value) || 0)) / 100;
+        const total = subtotal + tax;
+        subtotalInput.value = subtotal.toFixed(2);
+        totalInput.value = total.toFixed(2);
+    } catch (error) {
+        console.error("Error calculating totals:", error);
+    }
+}
+
+// Initial load of invoices
+try {
+    loadInvoices();
+} catch (error) {
+    console.error("Error during initial invoice load:", error);
+}
     </script>
+    <script>
+  // Check if SweetAlert CSS loaded properly
+  window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      if (!document.querySelector('style[id*="sweetalert"]')) {
+        // If CDN fails, use an alternative CDN
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.4.8/sweetalert2.min.css';
+        document.head.appendChild(link);
+        
+        console.log('Using fallback SweetAlert CSS');
+      }
+    }, 2000); // Check after 2 seconds
+  });
+</script>
 </body>
 </html>
 
