@@ -1216,7 +1216,7 @@
                     });
 
                     const tax = (subtotal * (parseFloat(elements.taxInput.value) || 0)) / 100;
-                    const total = subtotal + tax;
+                    const total = subtotal;
                     elements.subtotalInput.value = subtotal.toFixed(2);
                     elements.totalInput.value = total.toFixed(2);
                 } catch (error) {
